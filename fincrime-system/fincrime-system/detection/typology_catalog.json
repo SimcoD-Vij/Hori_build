@@ -1,0 +1,10 @@
+[
+  {"typology": "Structuring", "branch": "AML_BRANCH", "red_flags": ["structuring"], "description": "Cash deposits clustered just under a reporting threshold."},
+  {"typology": "Mule network layering", "branch": "AML_BRANCH", "red_flags": ["graph_fan_hub", "velocity"], "description": "One account funneling funds from many sources to many destinations rapidly."},
+  {"typology": "Round-tripping", "branch": "AML_BRANCH", "red_flags": ["graph_round_trip"], "description": "Funds cycle through a chain of accounts back to origin."},
+  {"typology": "Synthetic identity ring", "branch": "AML_BRANCH", "red_flags": ["synthetic_identity_ring", "bust_out"], "description": "Multiple identities sharing device/phone/address, cultivated then bust-out."},
+  {"typology": "Card-not-present fraud", "branch": "FRAUD_BRANCH", "red_flags": ["zscore_self_history", "supervised_ml"], "description": "Unrecognized online purchase deviating from customer's own spending history."},
+  {"typology": "Account takeover", "branch": "FRAUD_BRANCH", "red_flags": ["velocity", "zscore_self_history"], "description": "Sudden high-value activity inconsistent with the account's normal behavior."},
+  {"typology": "Unusual for peer group", "branch": "AML_BRANCH", "red_flags": ["peer_group_deviation"], "description": "Behavior atypical for this customer's dynamically-derived peer group, even if not atypical globally."},
+  {"typology": "Novel / undetermined pattern", "branch": "AML_BRANCH", "red_flags": ["unsupervised_novel_pattern"], "description": "Flagged only by the unsupervised model -- does not match a known typology; requires fresh human review."}
+]

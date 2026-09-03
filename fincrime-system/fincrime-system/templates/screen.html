@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head><title>Pre-transaction screening</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+<body class="bg-light"><div class="container py-4">
+  <a href="/">&larr; back to dashboard</a>
+  <h2>Real-Time Pre-Transaction Screening</h2>
+  <p class="text-muted">Predicts ALLOW / HOLD / BLOCK <b>before</b> a transaction is committed — this
+     is prediction, not retrospective detection. Try a normal amount first, then try a large
+     card_not_present amount to see a HOLD, or repeated cash_deposit near 9800 to see a BLOCK.</p>
+
+  <form method="post" action="/screen" class="card p-3 mb-3">
+    <div class="row g-2">
+      <div class="col-4">
+        <label>Sender account</label>
+        <select name="sender_account" class="form-select">
+          {% for a in accounts %}<option value="{{ a.account_id }}">{{ a.account_id }} ({{ a.occupation }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-3"><label>Amount</label><input type="number" step="0.01" name="amount" class="form-control" value="5000"></div>
+      <div class="col-3"><label>Method</label>
+        <select name="method" class="form-select">
+          <option value="transfer">transfer</option>
+          <option value="cash_deposit">cash_deposit</option>
+          <option value="card_not_present">card_not_present</option>
+        </select>
+      </div>
+      <div class="col-2 d-flex align-items-end"><button class="btn btn-primary w-100">Screen</button></div>
+    </div>
+  </form>
+
+  {% if result %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5>Decision:
+        <span class="badge {{ 'bg-success' if result.decision=='ALLOW' else ('bg-warning text-dark' if result.decision=='HOLD_FOR_VERIFICATION' else 'bg-danger') }}">
+          {{ result.decision }}</span>
+      </h5>
+      <p><b>Severity:</b> {{ result.severity }}/10 &nbsp; <b>Matched patterns:</b> {{ result.matched_patterns }}</p>
+      <p class="text-muted">{{ result.reasoning }}</p>
+      {% if result.evidence %}<ul>{% for e in result.evidence %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if questions %}
+  <div class="card mb-3 border-warning">
+    <div class="card-body">
+      <h5>Calling agent — verification questions</h5>
+      <ul>{% for q in questions %}<li>{{ q }}</li>{% endfor %}</ul>
+      <form method="post" action="/screen/{{ screening_id }}/resolve">
+        <div class="mb-2"><label>Simulate customer response:</label>
+          <input type="text" name="customer_response" class="form-control" placeholder="e.g. Yes that was me">
+        </div>
+        <button class="btn btn-sm btn-outline-primary">Submit response &amp; resolve</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if final %}
+  <div class="card mb-3 {{ 'border-success' if final.decision=='ALLOW' else 'border-danger' }}">
+    <div class="card-body">
+      <h5>Final decision after call: <span class="badge {{ 'bg-success' if final.decision=='ALLOW' else 'bg-danger' }}">{{ final.decision }}</span></h5>
+      <p><b>Transcript:</b> {{ transcript }} &nbsp; <b>Classification:</b> {{ classification }}</p>
+      <p class="text-muted">{{ final.reasoning }}</p>
+    </div>
+  </div>
+  {% endif %}
+</div></body></html>

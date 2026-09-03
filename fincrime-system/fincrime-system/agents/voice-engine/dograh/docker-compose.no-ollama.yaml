@@ -1,0 +1,52 @@
+# docker-compose.no-ollama.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Override that substitutes the 3.38 GB ollama image with a tiny no-op
+# placeholder (alpine:latest, ~7 MB) so:
+#   - docker-compose depends_on: ollama: condition: service_started still works
+#   - The 3.38 GB download is skipped entirely
+#   - All other Dograh services (api, ui, pocket-tts, postgres, redis, minio)
+#     start normally
+#
+# USAGE (run from the fincrime-system root):
+#   docker compose \
+#     -f agents/voice-engine/dograh/docker-compose.yaml \
+#     -f agents/voice-engine/dograh/docker-compose.no-ollama.yaml \
+#     up --build -d
+#
+# The api container will still receive OLLAMA_BASE_URL pointing to your
+# Windows host (http://host.docker.internal:11434) in case you install
+# Ollama natively later (https://ollama.com/download).
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Replace 3.38 GB ollama image with a 7 MB alpine placeholder ─────────────
+  # alpine runs `true` and exits immediately — service_started condition is met.
+  ollama:
+    image: alpine:latest
+    container_name: ollama-placeholder
+    command: ["true"]     # exits code 0 immediately — depends_on condition satisfied
+    restart: "no"
+    ports: !reset []      # strictly remove port mapping to prevent conflict with native Windows Ollama (port 11434)
+    networks:
+      - app-network
+
+  # ── Override api to remove ollama from depends_on and fix OLLAMA_BASE_URL ───
+  api:
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      pocket-tts:
+        condition: service_started
+      cloudflared:
+        condition: service_started
+    environment:
+      # Prevent OOM on Docker Desktop by disabling background ARQ workers
+      ARQ_WORKERS: "0"
+      # Point at Windows host Ollama if installed natively later
+      # https://ollama.com/download  →  install on Windows, runs at :11434
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"

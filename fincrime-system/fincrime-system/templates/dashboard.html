@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Financial Crime Investigation Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-4">
+  <h2>Autonomous Financial Crime Investigation System</h2>
+  <p class="text-muted">{{ n_accounts }} accounts · {{ n_transactions }} transactions scanned ·
+     Benford deviation: {{ benford.deviation }} ({{ benford.note }})</p>
+  <a href="/redteam" class="btn btn-outline-danger btn-sm mb-3">Run red-team probe</a>
+  <a href="/accuracy" class="btn btn-outline-success btn-sm mb-3">View detection accuracy</a>
+  <a href="/screen" class="btn btn-outline-primary btn-sm mb-3">Screen a new transaction (real-time)</a>
+  <a href="/qa" class="btn btn-outline-secondary btn-sm mb-3">Case QA audit (closed cases)</a>
+
+  <table class="table table-striped bg-white">
+    <thead><tr><th>Account</th><th>Matched rules</th><th># flags</th><th>Max severity</th><th></th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><code>{{ row.account_id }}</code></td>
+        <td>{% for r in row.rules %}<span class="badge bg-secondary me-1">{{ r }}</span>{% endfor %}</td>
+        <td>{{ row.n_flags }}</td>
+        <td>
+          {% if row.severity >= 8 %}<span class="badge bg-danger">{{ row.severity }}</span>
+          {% elif row.severity >= 5 %}<span class="badge bg-warning text-dark">{{ row.severity }}</span>
+          {% else %}<span class="badge bg-success">{{ row.severity }}</span>{% endif %}
+        </td>
+        <td><a href="/investigate/{{ row.account_id }}" class="btn btn-primary btn-sm">Investigate</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - audit-data:/app/data
+    environment:
+      # Set these to upgrade agents from template mode to real LLM reasoning.
+      # Leave unset and everything still runs -- template fallback mode is the default.
+      - LLM_PROVIDER=template          # template | anthropic | ollama
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+    restart: unless-stopped
+
+volumes:
+  audit-data:

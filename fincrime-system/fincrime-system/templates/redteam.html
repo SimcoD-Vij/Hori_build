@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head><title>Red-team probe</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+<body class="bg-light"><div class="container py-4">
+  <a href="/">&larr; back</a>
+  <h2>Red-Team Agent Probe Result</h2>
+  <div class="card"><div class="card-body">
+    <p><b>Blind spot found:</b> <span class="badge {{ 'bg-danger' if result.blind_spot_found else 'bg-success' }}">{{ result.blind_spot_found }}</span></p>
+    <p>{{ result.detail }}</p>
+  </div></div>
+</div></body></html>
