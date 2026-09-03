@@ -160,6 +160,8 @@ services:
     image: dograh-api:latest
     container_name: dograh-api
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
     volumes:
       - shared_tmp:/tmp
       - voices_data:/voices:ro

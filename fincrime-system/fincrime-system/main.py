@@ -8,12 +8,17 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from data.generate_synthetic_data import generate
+# Feature flag: set USE_AMLSIM=true in .env to use real AMLSim data instead of synthetic.
+# Keep both imports -- synthetic stays for regression testing (guide Step 2 requirement).
+USE_AMLSIM = os.environ.get("USE_AMLSIM", "false").lower() == "true"
+from data.generate_synthetic_data import generate  # kept for regression fallback
+from data.ingestion.load_external import load_amlsim  # AMLSim adapter (Step 1)
 from detection.rules import run_all_rules
 from detection.statistics_layer import zscore_flags, benford_deviation_score
 from detection.segmentation import build_peer_groups, peer_deviation_flags
 from detection.graph_analysis import run_graph_detection, build_identity_graph
 from detection.ml_models import train_supervised, supervised_flags, unsupervised_flags
+from detection.temporal_graph import build_temporal_snapshots  # EvolveGCN prep (EVOLVEGCN_INTEGRATION.md)
 from agents.redteam_agent import run_redteam_probe
 from detection.backtest import compute_accuracy
 from realtime.pretransaction_screening import screen_transaction, resolve_hold
@@ -32,7 +37,17 @@ STATE = {}
 
 
 def run_full_detection():
-    accounts, transactions, ground_truth = generate()
+    # Step 2 (INTEGRATION_AND_OPERATIONS_GUIDE.md): swap data source based on feature flag.
+    # Old synthetic generator kept commented directly above for regression testing -- do not delete.
+    # accounts, transactions, ground_truth = generate()  # synthetic -- restore for regression tests
+    if USE_AMLSIM:
+        try:
+            accounts, transactions, ground_truth = load_amlsim()
+        except FileNotFoundError as e:
+            print(f"[WARNING] AMLSim data not found ({e}). Falling back to synthetic data.")
+            accounts, transactions, ground_truth = generate()
+    else:
+        accounts, transactions, ground_truth = generate()
     acc_df = pd.DataFrame(accounts)
     txn_df = pd.DataFrame(transactions)
 
@@ -55,6 +70,13 @@ def run_full_detection():
     identity_links = {n: list(id_graph.neighbors(n)) for n in id_graph.nodes if id_graph.degree(n) > 0}
 
     benford = benford_deviation_score(txn_df)
+
+    # EvolveGCN temporal graph (EVOLVEGCN_INTEGRATION.md Step -- additive, never replaces existing detectors)
+    # build_temporal_snapshots slices data into day-by-day graph snapshots ready for EvolveGCN training.
+    # Inference call is commented out until the model is trained on real historical data (guide scoping note).
+    temporal_snapshots = build_temporal_snapshots(txn_df)
+    # from detection.evolvegcn_service import run_evolvegcn_inference  # uncomment after training
+    # flags += run_evolvegcn_inference(temporal_snapshots)             # uncomment after training
 
     STATE["accounts"] = accounts
     STATE["transactions"] = transactions
