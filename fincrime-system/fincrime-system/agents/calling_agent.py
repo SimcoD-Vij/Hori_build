@@ -26,6 +26,11 @@ QUESTION_BANKS = {
         "Have you met the recipient of this transfer in person?",
         "Were you asked to keep this transfer confidential from family or the bank?",
     ],
+    "NOVEL_PATTERN": [
+        "We noticed some unusual structural patterns in your recent account activity. Can you confirm if you've authorized all recent incoming and outgoing transfers?",
+        "Are you using your account for any new business purposes or third-party transactions recently?",
+        "Has anyone else been given access to manage or route funds through your account?",
+    ],
     "default": [
         "Can you tell me a bit about this transaction: {amount} on {date}?",
         "Was this something you personally initiated?",
@@ -76,21 +81,10 @@ def run_calling_agent(case: dict, branch: str, customer_response: str = None) ->
     case_type = case.get("matched_typology", "default")
     questions = select_questions(case_type, case)
 
-    channel_log = []
-    channel_log.append(send_sms(case["account_id"],
-                                 f"We noticed unusual activity on your account. Please confirm: {questions[0]}"))
-
-    if customer_response is None:
-        return {"status": "awaiting_response", "channel_log": channel_log, "questions_asked": questions}
-
-    classification = classify_response(customer_response)
-    channel_log.append({"channel": "call_transcript", "transcript": customer_response})
-
+    # HITL (Human-In-The-Loop) Update: 
+    # AI no longer calls automatically. We prepare the questions and wait for the investigator's approval.
     return {
-        "status": "complete",
-        "classification": classification,
-        "questions_asked": questions,
-        "transcript": customer_response,
-        "channel_log": channel_log,
-        "auto_close_eligible": classification == "satisfactory",
+        "status": "awaiting_human_decision", 
+        "questions_prepared": questions
     }
+

@@ -36,13 +36,13 @@ def investigate_account(account_id: str, all_flags: list, accounts_by_id: dict,
     state["risk"] = risk
     audit_log.log(case_id, "risk_assessment_agent", "assess_risk", risk)
 
-    # 4. Calling agent -- only on FRAUD_BRANCH, only if evidence is ambiguous enough to need confirmation
+    # 4. Calling agent -- only on FRAUD_BRANCH, now awaits human approval instead of executing
     call_result = None
     if triage_result["branch"] == "FRAUD_BRANCH":
         try:
             call_result = run_calling_agent(risk, triage_result["branch"], customer_response)
-            audit_log.log(case_id, "calling_agent", "contact_customer",
-                           {"status": call_result.get("status"), "classification": call_result.get("classification")})
+            audit_log.log(case_id, "calling_agent", "prepare_call",
+                           {"status": call_result.get("status")})
         except PermissionError as e:
             audit_log.log(case_id, "calling_agent", "refused", {"reason": str(e)})
     state["call_result"] = call_result
@@ -59,5 +59,14 @@ def investigate_account(account_id: str, all_flags: list, accounts_by_id: dict,
     if verification["result"] == "FAIL":
         report["recommended_action"] = "ESCALATE_TO_HUMAN_REVIEW"
         report["verification_override"] = verification["issues"]
+
+    # Attach raw transaction graph for frontend visualization
+    # Filter only transactions relevant to this account
+    import pandas as pd
+    from main import STATE as app_state
+    if "transactions" in app_state:
+        # Get the original transactions to build the graph
+        txns = [t for t in app_state["transactions"] if t["sender_account"] == account_id or t["receiver_account"] == account_id]
+        state["graph_edges"] = txns
 
     return state

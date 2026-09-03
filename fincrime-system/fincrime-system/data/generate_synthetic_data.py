@@ -23,10 +23,13 @@ def _rid(n=8):
     return "".join(random.choice("0123456789abcdef") for _ in range(n))
 
 
+FIRST_NAMES = ["John", "Mary", "James", "Sarah", "Michael", "Emma", "David", "Lisa", "Tom", "Anna", "Paul", "Mark", "Karen"]
+LAST_NAMES = ["Smith", "Jones", "Brown", "Davis", "White", "Clark", "Hall", "King", "Green", "Baker", "Hill", "Scott", "Adams"]
+
 def _new_account(occupation=None, opened_days_ago=None, device_id=None, phone=None, address=None):
     return {
         "account_id": _rid(),
-        "customer_id": _rid(),
+        "customer_id": f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}",
         "occupation": occupation or random.choice(OCCUPATIONS),
         "opened_date": (datetime.now() - timedelta(days=opened_days_ago if opened_days_ago is not None else random.randint(30, 2000))).isoformat(),
         "device_id": device_id or f"dev-{random.randint(1000,9999)}",
@@ -119,7 +122,9 @@ if __name__ == "__main__":
     import json
     accts, txns, truth = generate()
     print(f"Generated {len(accts)} accounts, {len(txns)} transactions, {len(truth)} ground-truth labels")
-    with open("/home/claude/fincrime-system/data/accounts.json", "w") as f:
+    import os
+    base_dir = os.path.dirname(__file__)
+    with open(os.path.join(base_dir, "accounts.json"), "w") as f:
         json.dump(accts, f, indent=2)
-    with open("/home/claude/fincrime-system/data/transactions.json", "w") as f:
+    with open(os.path.join(base_dir, "transactions.json"), "w") as f:
         json.dump(txns, f, indent=2)

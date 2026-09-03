@@ -6,7 +6,7 @@ rule, not a preference, and is never bypassable by a downstream agent.
 """
 import json
 
-FRAUD_BRANCH_RULES = {"zscore_self_history", "supervised_ml", "velocity"}
+FRAUD_BRANCH_RULES = {"zscore_self_history", "supervised_ml", "velocity", "evolvegcn_temporal"}
 AML_ONLY_RULES = {"structuring", "graph_fan_hub", "graph_round_trip", "synthetic_identity_ring",
                    "peer_group_deviation", "unsupervised_novel_pattern", "bust_out"}
 

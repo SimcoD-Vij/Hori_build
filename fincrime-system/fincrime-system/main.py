@@ -73,10 +73,20 @@ def run_full_detection():
 
     # EvolveGCN temporal graph (EVOLVEGCN_INTEGRATION.md Step -- additive, never replaces existing detectors)
     # build_temporal_snapshots slices data into day-by-day graph snapshots ready for EvolveGCN training.
-    # Inference call is commented out until the model is trained on real historical data (guide scoping note).
     temporal_snapshots = build_temporal_snapshots(txn_df)
-    # from detection.evolvegcn_service import run_evolvegcn_inference  # uncomment after training
-    # flags += run_evolvegcn_inference(temporal_snapshots)             # uncomment after training
+    
+    try:
+        import urllib.request
+        import json
+        url = os.environ.get("EVOLVEGCN_SERVICE_URL", "http://127.0.0.1:5005") + "/predict"
+        snapshots_json = [snap.to_dict(orient="records") for snap in temporal_snapshots]
+        req = urllib.request.Request(url, data=json.dumps({"snapshots": snapshots_json}, default=str).encode(), headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode())
+            flags += res.get("flags", [])
+            print(f"[INFO] EvolveGCN returned {len(res.get('flags', []))} temporal flags.")
+    except Exception as e:
+        print(f"[WARNING] EvolveGCN GPU Microservice unreachable or failed: {e}")
 
     STATE["accounts"] = accounts
     STATE["transactions"] = transactions
@@ -125,6 +135,52 @@ def investigate_with_response(request: Request, account_id: str, customer_respon
         STATE["identity_links"].get(account_id, []), customer_response=customer_response,
     )
     return templates.TemplateResponse("case_report.html", {"request": request, "case": result})
+
+
+@app.post("/investigate/{account_id}/approve_call")
+def investigate_approve_call(account_id: str):
+    import urllib.request
+    result = orchestrator.investigate_account(
+        account_id, STATE["flags"], STATE["accounts_by_id"],
+        STATE["identity_links"].get(account_id, [])
+    )
+    
+    # Check DEMO_MODE logic dynamically from disk so we don't need a uvicorn restart
+    from dotenv import dotenv_values
+    env_dict = dotenv_values(".env")
+    is_demo = env_dict.get("DEMO_MODE", "false").lower() == "true"
+    actual_phone = STATE["accounts_by_id"][account_id].get("phone", "")
+    target_phone = env_dict.get("DEMO_PHONE_NUMBER", actual_phone) if is_demo else actual_phone
+    
+    payload = {
+        "account_id": account_id,
+        "phone": target_phone,
+        "account_holder_name": STATE["accounts_by_id"][account_id].get("customer_id", "Unknown User"),
+        "case_id": result["case_id"],
+        "fraud_type": result["risk"].get("matched_typology", "Fraud"),
+        "severity": result["risk"].get("severity", 0),
+        "questions": result.get("call_result", {}).get("questions_prepared", []),
+        "flags_summary": ", ".join(f.get("evidence", "") for f in result["evidence"].get("flags", [])),
+        "summary": result["risk"].get("reasoning", "")
+    }
+    
+    try:
+        url = os.environ.get("DOGRAH_API_URL", "http://127.0.0.1:8083")
+        # In this fincrime setup, the dograh voice engine is on port 8083
+        if "8000" in url: url = "http://127.0.0.1:8083" # fix standard port if defaulting
+        
+        req = urllib.request.Request(
+            f"{url}/trigger-call",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            return {"status": "initiated", "call_id": data.get("call_id"), "redirect": data.get("case_url")}
+    except Exception as e:
+        print(f"[ERROR] Failed to trigger Dograh call: {e}")
+        return {"error": str(e)}
 
 
 @app.get("/redteam", response_class=HTMLResponse)

@@ -52,6 +52,14 @@ from typing import Any
 
 from flask import Flask, Response, jsonify, request
 
+try:
+    from dotenv import load_dotenv
+    # Find .env relative to this file (which is in agents/voice-engine/)
+    env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.env"))
+    load_dotenv(env_path, override=True)
+except ImportError:
+    pass
+
 # ── Config ─────────────────────────────────────────────────────────────────────
 DOGRAH_API_URL     = os.environ.get("DOGRAH_API_URL",     "http://dograh-api:8000")
 DOGRAH_API_KEY     = os.environ.get("DOGRAH_API_KEY",     "")
@@ -280,7 +288,7 @@ def trigger_call() -> Response:
         return jsonify({
             "status":   "initiated",
             "call_id":  call_id,
-            "case_url": f"{THIS_SERVICE_URL}/case/{case_id}",
+            "case_url": f"http://127.0.0.1:{PORT}/case/{case_id}",
         }), 202
 
     except Exception as e:
@@ -981,14 +989,14 @@ def _render_case_page(case_id: str) -> str:
             <span class="meta-label">Flagged Signals</span>
             <span class="meta-value">{c.get('flags_summary') or '—'}</span>
           </div>
-          <div class="meta-item" style="margin-bottom:12px;">
+          {f'''<div class="meta-item" style="margin-bottom:12px;">
             <span class="meta-label">Amount</span>
-            <span class="meta-value">${c.get('amount','—')} on {c.get('date','—')}</span>
-          </div>
-          <div class="meta-item" style="margin-bottom:12px;">
+            <span class="meta-value">${c.get('amount')} on {c.get('date')}</span>
+          </div>''' if c.get('amount') else ''}
+          {f'''<div class="meta-item" style="margin-bottom:12px;">
             <span class="meta-label">Merchant / Beneficiary</span>
-            <span class="meta-value">{c.get('merchant','—')}</span>
-          </div>
+            <span class="meta-value">{c.get('merchant')}</span>
+          </div>''' if c.get('merchant') else ''}
           <hr class="divider">
           <div class="meta-label" style="margin-bottom:10px;">Investigation Notes</div>
           <div style="font-size:13px;color:#cbd5e1;line-height:1.6;">{c.get('pre_call_summary') or '—'}</div>
