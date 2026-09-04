@@ -2,6 +2,10 @@
 # Guide Step 4: replace stub with real OpenSanctions call (this IS a replacement, not an addition)
 from knowledge_base.sanctions_screen import screen_sanctions
 
+# In-memory stats counters (reset on restart)
+_stats = {"cases_processed": 0, "sanctions_hits": 0, "accounts_with_linked_identities": 0, "total_flags": 0}
+
+
 
 def gather_evidence(account_id: str, all_flags: list, accounts_by_id: dict, identity_graph_links=None) -> dict:
     acct_flags = [f for f in all_flags if f["account_id"] == account_id]
@@ -28,4 +32,23 @@ def gather_evidence(account_id: str, all_flags: list, accounts_by_id: dict, iden
     if "opened_date" in acct:
         import pandas as pd
         evidence["account_age_days"] = (pd.Timestamp.now() - pd.to_datetime(acct["opened_date"])).days
+
+    # Track stats
+    _stats["cases_processed"] += 1
+    _stats["total_flags"] += len(acct_flags)
+    if sanctions_result["hit"]:
+        _stats["sanctions_hits"] += 1
+    if identity_graph_links:
+        _stats["accounts_with_linked_identities"] += 1
+
     return evidence
+
+
+def get_stats() -> dict:
+    """Return evidence gathering statistics for the visual interface."""
+    processed = _stats["cases_processed"]
+    return {
+        **_stats,
+        "avg_flags_per_case": round(_stats["total_flags"] / processed, 2) if processed else 0.0,
+    }
+

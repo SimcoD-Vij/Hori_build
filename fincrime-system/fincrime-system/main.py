@@ -25,8 +25,13 @@ from realtime.pretransaction_screening import screen_transaction, resolve_hold
 from realtime.enforcement import enforce_decision  # prediction-only by default -- see realtime/enforcement.py
 from agents.calling_agent import select_questions, classify_response
 from agents.qa_agent import qa_review_batch
-import orchestrator
 import audit_log
+
+USE_LANGGRAPH_ORCHESTRATOR = os.environ.get("USE_LANGGRAPH_ORCHESTRATOR", "true").lower() == "true"
+if USE_LANGGRAPH_ORCHESTRATOR:
+    import orchestrator_langgraph as orchestrator
+else:
+    import orchestrator
 
 PENDING_SCREENINGS = {}
 
@@ -177,7 +182,7 @@ def investigate_approve_call(account_id: str):
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
-            return {"status": "initiated", "call_id": data.get("call_id"), "redirect": data.get("case_url")}
+            return {"status": "initiated", "call_id": data.get("call_id"), "redirect": data.get("case_url")}            
     except Exception as e:
         print(f"[ERROR] Failed to trigger Dograh call: {e}")
         return {"error": str(e)}
@@ -199,6 +204,75 @@ def accuracy(request: Request):
     acc = compute_accuracy(STATE["ground_truth"], STATE["flags"])
     return templates.TemplateResponse("accuracy.html", {"request": request, "acc": acc})
 
+
+@app.get("/agents", response_class=HTMLResponse)
+def agents_dashboard(request: Request):
+    return templates.TemplateResponse("agents.html", {"request": request})
+
+@app.get("/agents/triage", response_class=HTMLResponse)
+def agent_triage(request: Request):
+    from agents.triage_agent import get_stats
+    return templates.TemplateResponse("agent_triage.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/evidence", response_class=HTMLResponse)
+def agent_evidence(request: Request):
+    from agents.evidence_agent import get_stats
+    return templates.TemplateResponse("agent_evidence.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/risk", response_class=HTMLResponse)
+def agent_risk(request: Request):
+    from agents.risk_assessment_agent import get_stats
+    return templates.TemplateResponse("agent_risk.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/verification", response_class=HTMLResponse)
+def agent_verification(request: Request):
+    from agents.verification_agent import get_stats
+    return templates.TemplateResponse("agent_verification.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/explanation", response_class=HTMLResponse)
+def agent_explanation(request: Request):
+    from agents.explanation_agent import get_stats
+    return templates.TemplateResponse("agent_explanation.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/calling", response_class=HTMLResponse)
+def agent_calling(request: Request):
+    from agents.calling_agent import get_stats
+    return templates.TemplateResponse("agent_calling.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/redteam", response_class=HTMLResponse)
+def agent_redteam(request: Request):
+    from agents.redteam_agent import get_stats
+    return templates.TemplateResponse("agent_redteam.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/qa", response_class=HTMLResponse)
+def agent_qa(request: Request):
+    from agents.qa_agent import get_stats
+    return templates.TemplateResponse("agent_qa.html", {"request": request, "stats": get_stats()})
+
+@app.get("/agents/regulatory", response_class=HTMLResponse)
+def agent_regulatory(request: Request):
+    from agents.regulatory_agent import get_stats, get_system_posture
+    return templates.TemplateResponse("agent_regulatory.html", {"request": request, "stats": get_stats(), "posture": get_system_posture()})
+
+@app.get("/detection", response_class=HTMLResponse)
+def detection_dashboard(request: Request):
+    from detection.statistics_layer import zscore_value
+    flag_sources = {}
+    for f in STATE["flags"]:
+        src = f["rule"]
+        flag_sources[src] = flag_sources.get(src, 0) + 1
+    
+    zscore_values = list(zscore_value.values())
+    
+    return templates.TemplateResponse("detection_stats.html", {
+        "request": request, 
+        "n_accounts": len(STATE["accounts"]),
+        "n_flagged": len(STATE["flagged_accounts"]),
+        "benford": STATE["benford"],
+        "n_zscore_flags": sum(1 for f in STATE["flags"] if f["rule"] == "zscore_self_history"),
+        "flag_sources": flag_sources,
+        "zscore_values": zscore_values
+    })
 
 @app.get("/screen", response_class=HTMLResponse)
 def screen_form(request: Request):
@@ -275,3 +349,5 @@ def qa_audit(request: Request):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "accounts": len(STATE.get("accounts", [])), "flagged": len(STATE.get("flagged_accounts", []))}
+
+

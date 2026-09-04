@@ -1,0 +1,30 @@
+{
+  "system_name": "Autonomous Financial Crime Investigation System",
+  "version": "1.0.0",
+  "purpose": "Automated detection, triage, evidence gathering, risk assessment, and explanation for financial crime cases (fraud and AML). Classified as high-risk AI under EU AI Act Annex III.",
+  "jurisdiction": "global",
+  "eu_ai_act_risk_class": "HIGH_RISK",
+  "eu_ai_act_annex_iii_category": "8 - AI in law enforcement, anti-money-laundering",
+  "deployment_date": "2026-09-04",
+  "last_redteam_date": null,
+  "last_documentation_review": "2026-09-04",
+  "training_data_sources": [
+    {"name": "AMLSim synthetic transaction simulator", "type": "synthetic", "provenance": "IBM AMLSim", "pii_present": false, "notes": "SSN field hashed SHA-256[:12] before storage. See data/ingestion/load_external.py."},
+    {"name": "Synthetic data generator", "type": "synthetic", "provenance": "Internal (data/generate_synthetic_data.py)", "pii_present": false}
+  ],
+  "models": [
+    {"name": "RandomForest supervised classifier", "version": "v1.0", "purpose": "Supervised fraud flag classification", "validation_methodology": "Precision/recall/F1 against ground-truth seeded patterns"},
+    {"name": "Isolation Forest unsupervised model", "version": "v1.0", "purpose": "Novel pattern detection"},
+    {"name": "EvolveGCN temporal graph model", "version": "placeholder-heuristic", "purpose": "Temporal account-network analysis", "known_limitations": "Current implementation is a frequency-count heuristic, not a trained model output."}
+  ],
+  "human_oversight_mechanisms": [
+    "HITL gate on Calling Agent: AI never calls a customer directly. Investigator must explicitly approve.",
+    "Verification Agent: independent second pass that can override any earlier agent conclusion.",
+    "HOLD_FOR_VERIFICATION path: pre-transaction decisions reviewable before becoming permanent.",
+    "ESCALATE_TO_HUMAN_REVIEW: any case with severity >= 8 or NOVEL_PATTERN is mandatorily human-reviewed.",
+    "QA Agent: post-hoc human auditor review of closed cases."
+  ],
+  "sar_filing": {"jurisdiction": "US", "deadline_days": 30, "tracking": "regulatory_agent.track_sar_deadline()"},
+  "post_market_monitoring": {"mechanism": "QA Agent batch review", "redteam_cadence_days": 7},
+  "conformity_assessment": {"status": "PENDING", "notes": "Formal conformity assessment required before EU deployment per EU AI Act Article 43."}
+}

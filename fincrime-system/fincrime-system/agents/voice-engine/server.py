@@ -336,6 +336,34 @@ def call_completed() -> Response:
     print(f"   Duration: {duration}s | Disposition: {disposition}")
 
     # ── Build transcript ──────────────────────────────────────────────────────
+    # If the webhook did not include the transcript directly but gave us a transcript_url, fetch it.
+    transcript_url = payload.get("transcript_url")
+    if not transcript_raw and transcript_url:
+        print(f"   📥 Fetching transcript from Dograh URL: {transcript_url}")
+        try:
+            headers = {"X-API-Key": DOGRAH_API_KEY} if DOGRAH_API_KEY else {}
+            req = urllib.request.Request(transcript_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                fetched_data = json.loads(resp.read().decode())
+                # Depending on Dograh's structure, the transcript array might be at the root or under a key
+                transcript_raw = fetched_data.get("transcript", fetched_data) if isinstance(fetched_data, dict) else fetched_data
+        except Exception as e:
+            print(f"   ⚠️ Failed to fetch transcript from URL: {e}")
+
+    # Fallback to fetching via Dograh API if we only have run_id
+    if not transcript_raw and run_id and DOGRAH_API_KEY and DOGRAH_WORKFLOW_ID:
+        print(f"   📥 Fetching transcript from Dograh API for run_id: {run_id}")
+        try:
+            req = urllib.request.Request(
+                f"{DOGRAH_API_URL}/api/v1/workflow/{DOGRAH_WORKFLOW_ID}/runs/{run_id}",
+                headers={"X-API-Key": DOGRAH_API_KEY, "Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                run_data = json.loads(resp.read().decode())
+                transcript_raw = run_data.get("transcript", [])
+        except Exception as e:
+            print(f"   ⚠️ Failed to fetch transcript via API: {e}")
+
     turns: list[dict] = []
     if isinstance(transcript_raw, list):
         turns = [{"role": t.get("role", "?"), "content": t.get("content", "")}
@@ -345,6 +373,7 @@ def call_completed() -> Response:
         )
     else:
         transcript_text = str(transcript_raw)
+
 
     classification = _classify_transcript(transcript_text, disposition)
     recommended    = _recommended_action(classification, disposition)

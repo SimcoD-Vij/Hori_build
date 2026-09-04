@@ -14,6 +14,13 @@ look at -- it never reopens or changes a case itself.
 REQUIRED_REPORT_FIELDS = ["case_id", "account_id", "matched_typology", "confidence",
                           "severity", "evidence_sources", "recommended_action", "model_rule_versions"]
 
+# In-memory stats counters (reset on restart)
+from collections import Counter
+from agents import llm_client
+import json
+
+_stats = {"total_reviewed": 0, "flagged_count": 0, "issue_counter": Counter()}
+
 
 def qa_review_case(case_state: dict) -> dict:
     """case_state: the full dict returned by orchestrator.investigate_account()."""
@@ -49,14 +56,33 @@ def qa_review_case(case_state: dict) -> dict:
             issues.append("Case was auto-closed as customer-confirmed but no completed call "
                            "transcript is on record -- documentation problem")
 
+    if llm_client.llm_available():
+        prompt = f"Review this case report for financial crime investigation: {json.dumps(report)}. Verification result: {verification.get('result')}. Identify any missing logic, contradictory claims, or poor documentation in 1-2 short bullet points. If everything is well documented and consistent, reply 'NONE'."
+        try:
+            llm_issues = llm_client.call_llm("You are a QA auditor.", prompt)
+            if llm_issues and "NONE" not in llm_issues:
+                issues.append(f"LLM QA flagged: {llm_issues.strip()}")
+        except Exception:
+            pass
+
+    qa_result = "FLAGGED_FOR_HUMAN_AUDIT" if issues else "PASS"
+
+    # Track stats
+    _stats["total_reviewed"] += 1
+    if qa_result == "FLAGGED_FOR_HUMAN_AUDIT":
+        _stats["flagged_count"] += 1
+        for issue in issues:
+            _stats["issue_counter"][issue[:60]] += 1
+
     return {
         "case_id": case_state.get("case_id"),
         "account_id": case_state.get("account_id"),
-        "qa_result": "FLAGGED_FOR_HUMAN_AUDIT" if issues else "PASS",
+        "qa_result": qa_result,
         "issues": issues,
         "note": "Post-hoc quality check on an already-closed case -- flagged cases go to a human "
                 "auditor for review; this agent never reopens or changes a case on its own.",
     }
+
 
 
 def qa_review_batch(case_states: list) -> dict:
@@ -69,4 +95,16 @@ def qa_review_batch(case_states: list) -> dict:
         "flagged_count": len(flagged),
         "flagged_rate": round(len(flagged) / len(results), 3) if results else 0.0,
         "flagged_cases": flagged,
+    }
+
+
+def get_stats() -> dict:
+    """Return QA review statistics for the visual interface."""
+    total = _stats["total_reviewed"]
+    top_issues = [{"issue": k, "count": v} for k, v in _stats["issue_counter"].most_common(5)]
+    return {
+        "total_reviewed": total,
+        "flagged_count": _stats["flagged_count"],
+        "flagged_rate": round(_stats["flagged_count"] / total, 3) if total else 0.0,
+        "top_issues": top_issues,
     }

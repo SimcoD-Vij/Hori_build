@@ -33,6 +33,7 @@ Direction convention (from README.md schema contract):
 
 import os
 import uuid
+import hashlib
 import pandas as pd
 from datetime import datetime, timedelta
 
@@ -169,12 +170,22 @@ def load_amlsim_accounts(acct_csv_path: str) -> pd.DataFrame:
         ]
         address = ", ".join(p for p in addr_parts if p and p != "nan")
 
+        # PRIVACY FIX: device_id flows into the identity graph and gets displayed
+        # directly in evidence packets and case reports (see agents/evidence_agent.py,
+        # templates/case_report.html) -- storing a raw SSN there means a government
+        # ID number ends up shown to human reviewers and written to the audit log.
+        # Hash it instead: this still lets the identity graph link accounts that
+        # share the same underlying SSN (same hash = same person), which is the
+        # actual detection value, without ever storing or displaying the real number.
+        ssn_raw = str(r.get("ssn", "")).strip()
+        device_id = hashlib.sha256(ssn_raw.encode()).hexdigest()[:12] if ssn_raw else str(uuid.uuid4())[:8]
+
         rows.append({
             "account_id":   str(r["acct_id"]),
             "customer_id":  name,
             "occupation":   str(r.get("type", "SAV")),
             "opened_date":  _days_to_iso(r.get("open_dt", "0")),
-            "device_id":    str(r.get("ssn", str(uuid.uuid4())[:8])),
+            "device_id":    device_id,
             "phone":        str(r.get("zip", "")),
             "address":      address or "Unknown",
         })

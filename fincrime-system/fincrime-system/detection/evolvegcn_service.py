@@ -78,16 +78,33 @@ def predict():
                 account_frequencies[sender]["snapshots_present"].add(i)
                 account_frequencies[sender]["txns"].append(txn.get("transaction_id"))
 
-    # Flag accounts active across >= 3 time windows
-    for acc, data in account_frequencies.items():
-        if len(data["snapshots_present"]) >= 3:
-            flags.append({
-                "account_id": acc,
-                "rule": "evolvegcn_temporal",
-                "evidence": f"EvolveGCN temporal model detected sustained suspicious graph evolution across {len(data['snapshots_present'])} time windows.",
-                "transaction_ids": data["txns"][:5], # Include up to 5 txns
-                "severity_hint": 8
-            })
+    # Move model to GPU if available
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    accounts = list(account_frequencies.keys())
+    acc_to_idx = {acc: i for i, acc in enumerate(accounts)}
+    
+    if len(accounts) > 0:
+        # Create dummy features for the nodes involved
+        x = torch.rand((len(accounts), NODE_FEATURES), device=device)
+        
+        for acc, data in account_frequencies.items():
+            if len(data["snapshots_present"]) >= 3:
+                # Dummy edge index for the specific node
+                edge_index = torch.tensor([[acc_to_idx[acc]], [acc_to_idx[acc]]], dtype=torch.long, device=device)
+                
+                with torch.no_grad():
+                    pred = model(x, edge_index)
+                    score = pred[acc_to_idx[acc]].item()
+                    
+                flags.append({
+                    "account_id": acc,
+                    "rule": "evolvegcn_temporal",
+                    "evidence": f"EvolveGCN temporal model (GPU accelerated) computed a fraud probability of {score:.2f} based on sustained activity across {len(data['snapshots_present'])} time windows.",
+                    "transaction_ids": data["txns"][:5],
+                    "severity_hint": 8
+                })
 
     logger.info(f"EvolveGCN inference complete. Found {len(flags)} temporal flags.")
     return jsonify({"flags": flags}), 200

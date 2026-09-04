@@ -109,11 +109,22 @@ def generate(n_normal_accounts=120, n_normal_txns=600):
                                   memo="bust-out withdrawal"))
 
     # --- Pattern 5: Fraud-branch case (card-not-present, safe to call the customer) ---
-    victim = _new_account()
-    accounts.append(victim)
-    ground_truth[victim["account_id"]] = "card_not_present_fraud"
-    transactions.append(_txn(victim["account_id"], "MERCHANT-UNKNOWN-8831", 47500.00, 0,
-                              method="card_not_present", memo="electronics purchase - unrecognized merchant"))
+    # Generating 20 simple name victims to ensure fraud cases are available for calling tests
+    for i in range(1, 21):
+        victim = _new_account()
+        first_name = random.choice(FIRST_NAMES)
+        last_name = random.choice(LAST_NAMES)
+        victim["customer_id"] = f"{first_name} {last_name} (Test Case {i})"
+        accounts.append(victim)
+        ground_truth[victim["account_id"]] = "velocity_fraud"
+        
+        # To strictly trigger the FRAUD branch, we trigger the 'velocity' rule
+        # by generating 10 transactions in a very short window. We use standard 'transfer' 
+        # methods and small amounts so they don't look novel/anomalous to the unsupervised ML model (which is an AML rule).
+        for j in range(10):
+            transactions.append(_txn(victim["account_id"], f"EXTERNAL-{random.randint(10,99)}", 
+                                      round(random.uniform(20, 50), 2), days_ago=0,
+                                      method="transfer", memo=f"rapid transfer {j}"))
 
     return accounts, transactions, ground_truth
 

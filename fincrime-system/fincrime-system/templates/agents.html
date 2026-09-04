@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Hub — Fincrime Investigation System</title>
+  <meta name="description" content="Overview of all AI agents powering the Autonomous Financial Crime Investigation System">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; }
+    .hero { background: linear-gradient(135deg, #1a1f2e 0%, #0f1117 100%); border-bottom: 1px solid #2d3748; padding: 2.5rem 0 2rem; }
+    .hero h1 { font-size: 2rem; font-weight: 700; color: #fff; }
+    .hero p { color: #94a3b8; max-width: 600px; }
+    .agent-card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; transition: all 0.25s ease; text-decoration: none; color: inherit; display: block; height: 100%; }
+    .agent-card:hover { border-color: #4f46e5; transform: translateY(-3px); box-shadow: 0 8px 32px rgba(79,70,229,0.15); color: inherit; text-decoration: none; }
+    .agent-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+    .agent-card h5 { font-weight: 600; color: #f1f5f9; margin-bottom: 0.25rem; }
+    .agent-card p { font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.75rem; }
+    .badge-role { font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 20px; }
+    .badge-supervisor { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-peer { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+    .badge-gate { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .badge-periodic { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
+    .badge-compliance { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+    .section-title { color: #64748b; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; }
+    .topology-box { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; font-family: monospace; font-size: 0.78rem; color: #94a3b8; white-space: pre; overflow-x: auto; }
+    a.back { color: #60a5fa; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+<div class="hero">
+  <div class="container">
+    <a href="/" class="back">← back to dashboard</a>
+    <h1 class="mt-2">🤖 Agent Hub</h1>
+    <p>Each AI agent in this system has a specific, bounded job. Click any card to see its live stats, decision flow, and plain-language explanation.</p>
+  </div>
+</div>
+
+<div class="container py-4">
+  <!-- Investigation Pipeline -->
+  <div class="section-title">Investigation Pipeline (runs per case)</div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <a href="/agents/triage" class="agent-card">
+        <div class="agent-icon">🚦</div>
+        <h5>Triage Agent</h5>
+        <p>Decides if we can legally contact the customer, or must investigate silently (AML tipping-off rules).</p>
+        <span class="badge-role badge-gate">Hard Gate</span>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/agents/evidence" class="agent-card">
+        <div class="agent-icon">🔍</div>
+        <h5>Evidence Agent</h5>
+        <p>Compiles sanctions checks, flag details, and linked account data into one structured evidence packet.</p>
+        <span class="badge-role badge-peer">Peer</span>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/agents/risk" class="agent-card">
+        <div class="agent-icon">📊</div>
+        <h5>Risk Assessment Agent</h5>
+        <p>Matches evidence against a library of known financial crime patterns and scores severity 1–10.</p>
+        <span class="badge-role badge-peer">Peer</span>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/agents/calling" class="agent-card">
+        <div class="agent-icon">📞</div>
+        <h5>Voice AI Agent</h5>
+        <p>Prepares verification questions and routes them to the Dograh voice pipeline. Only on fraud cases — never AML.</p>
+        <span class="badge-role badge-gate">FRAUD Only · HITL</span>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/agents/explanation" class="agent-card">
+        <div class="agent-icon">📝</div>
+        <h5>Explanation Agent</h5>
+        <p>Writes the final investigation report. Every sentence traces to a specific piece of evidence. Marked DRAFT until filed.</p>
+        <span class="badge-role badge-gate">Fixed Sequence</span>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/agents/verification" class="agent-card">
+        <div class="agent-icon">🛡️</div>
+        <h5>Verification Agent</h5>
+        <p>Independent second pass. Its FAIL always overrides every earlier agent's conclusion — the system's safety net.</p>
+        <span class="badge-role badge-supervisor">Supervisor</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Systemwide Agents -->
+  <div class="section-title">Systemwide Agents (periodic / compliance)</div>
+  <div class="row g-3 mb-5">
+    <div class="col-md-4">
+      <a href="/agents/redteam" class="agent-card">
+        <div class="agent-icon">🔴</div>
+        <h5>Red-Team Agent</h5>
+        <p>Deliberately tries to sneak fake fraud past our own detectors. Runs on a schedule; feeds the compliance posture check.</p>
+        <span class="badge-role badge-periodic">Periodic</span>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/agents/qa" class="agent-card">
+        <div class="agent-icon">✅</div>
+        <h5>QA Agent</h5>
+        <p>Reviews already-closed cases for documentation gaps. Augments human auditors — never reopens a case on its own.</p>
+        <span class="badge-role badge-periodic">Periodic · Post-hoc</span>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="/agents/regulatory" class="agent-card">
+        <div class="agent-icon">🏛️</div>
+        <h5>Regulatory Agent</h5>
+        <p>Checks whether the system itself is legally operating: EU AI Act, BSA/AML SAR deadlines, SR 11-7, and GDPR compliance.</p>
+        <span class="badge-role badge-compliance">Compliance Gate</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Topology -->
+  <div class="section-title">Execution topology (LangGraph StateGraph)</div>
+  <div class="topology-box">Triage ──┬── AML_BRANCH  ──→ [Evidence ‖ Risk] ──────────────────→ Explanation
+          └── FRAUD_BRANCH ──→ [Evidence ‖ Risk] ──→ Calling (HITL) ──→ Explanation
+                                                                              │
+                                                               ┌─────[SUPERVISOR]─────┐
+                                                               │   Verification Agent  │
+                                                               │   PASS       FAIL     │
+                                                               └──────┬─────────┬──────┘
+                                                          Regulatory Gate   Human Review Queue
+                                                                    │
+                                                               Audit Log</div>
+</div>
+</body>
+</html>

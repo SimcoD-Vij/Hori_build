@@ -173,7 +173,7 @@ services:
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
 
       # Public endpoint — set to your domain when deploying remotely
-      BACKEND_API_ENDPOINT: "${BACKEND_API_ENDPOINT:-http://localhost:8000}"
+      BACKEND_API_ENDPOINT: "https://todd-equations-assembly-sense.trycloudflare.com"
 
       # Database
       DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
@@ -209,7 +209,7 @@ services:
       # Workers
       FASTAPI_WORKERS: "1"
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -233,8 +233,7 @@ services:
       timeout: 10s
       retries: 6
       start_period: 60s
-    dns:
-      - 8.8.8.8
+
     networks:
       - app-network
 

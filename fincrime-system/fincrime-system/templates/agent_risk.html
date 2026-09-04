@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><title>Risk Assessment Agent</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body{font-family:Inter,sans-serif;background:#0f1117;color:#e2e8f0}
+    .hero{background:linear-gradient(135deg,#1a1f2e,#0f1117);border-bottom:1px solid #2d3748;padding:2rem 0}
+    .hero h1{color:#fff;font-weight:700}.card-dark{background:#1a1f2e;border:1px solid #2d3748;border-radius:12px;padding:1.5rem}
+    .stat-val{font-size:2.2rem;font-weight:700}.stat-lbl{color:#64748b;font-size:.82rem}
+    .plain-box{background:#141820;border-left:3px solid #a78bfa;border-radius:6px;padding:1rem 1.2rem;color:#94a3b8;font-size:.88rem}
+    a.back{color:#60a5fa;font-size:.85rem}
+    .dim-bar{height:8px;border-radius:4px;background:#2d3748;overflow:hidden}
+    .dim-fill{height:100%;border-radius:4px;transition:width .5s ease}
+  </style>
+</head>
+<body>
+<div class="hero"><div class="container">
+  <a href="/agents" class="back">← all agents</a>
+  <h1 class="mt-2">📊 Risk Assessment Agent</h1>
+  <p style="color:#94a3b8">How dangerous is this case, really? Matching evidence to known crime patterns.</p>
+</div></div>
+<div class="container py-4">
+  <div class="plain-box mb-4">
+    <strong style="color:#a78bfa">Plain English:</strong> This agent takes the evidence packet and asks: does this look like a known crime pattern? 
+    It checks against a library of typologies — structuring, bust-out fraud, account takeover, wire fraud, synthetic identity rings, and more. 
+    If it finds a confident match, it names the pattern and scores the severity 1–10. If nothing matches, it labels the case NOVEL_PATTERN 
+    — which automatically routes it to a human investigator, because something new and unclassified is always worth a real person looking at.
+    It now also breaks risk into three dimensions: rule-based signals, graph-network signals, and statistical signals.
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#a78bfa">{{ stats.total_cases }}</div><div class="stat-lbl">Cases Assessed</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#34d399">{{ stats.avg_confidence }}</div><div class="stat-lbl">Avg Typology Confidence</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#f87171">{{ stats.avg_severity }}</div><div class="stat-lbl">Avg Severity (0–10)</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#fb923c">{{ stats.novel_pattern_count }}</div><div class="stat-lbl">Novel Patterns (→ human review)</div>
+    </div></div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-7"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Typology Breakdown</h6>
+      <canvas id="typologyChart" height="220"></canvas>
+    </div></div>
+    <div class="col-md-5"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Risk Dimension Scoring</h6>
+      <p style="color:#64748b;font-size:.78rem">Breakdown shows which type of signal is driving the risk score.</p>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1"><span style="font-size:.82rem">Rule-based signals</span><span style="color:#60a5fa;font-size:.82rem">structuring, velocity, bust-out</span></div>
+        <div class="dim-bar"><div class="dim-fill" style="width:{{ (stats.avg_confidence * 100)|round }}%;background:#3b82f6"></div></div>
+      </div>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1"><span style="font-size:.82rem">Graph-network signals</span><span style="color:#a78bfa;font-size:.82rem">fan-hub, round-trip, rings</span></div>
+        <div class="dim-bar"><div class="dim-fill" style="width:{{ [stats.novel_pattern_count * 20, 100]|min }}%;background:#7c3aed"></div></div>
+      </div>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1"><span style="font-size:.82rem">Statistical signals</span><span style="color:#34d399;font-size:.82rem">z-score, ML, EvolveGCN</span></div>
+        <div class="dim-bar"><div class="dim-fill" style="width:{{ [(stats.avg_severity * 8)|round, 100]|min }}%;background:#059669"></div></div>
+      </div>
+    </div></div>
+  </div>
+  <div class="card-dark">
+    <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">LangGraph Role</h6>
+    <p style="color:#94a3b8;font-size:.85rem;margin:0">Risk Assessment is a <strong style="color:#a78bfa">peer node</strong> running concurrently with Evidence in the graph.
+    Its output (<code>dimension_scores</code>, <code>matched_typology</code>, <code>severity</code>) is read by Explanation Agent and the Verification Supervisor.
+    The <code>branch_hint</code> it returns re-confirms Triage's routing decision — any disagreement surfaces at the Verification node.</p>
+  </div>
+</div>
+<script>
+const typData = {{ stats.typology_breakdown | tojson }};
+const labels = Object.keys(typData);
+const values = Object.values(typData);
+const colors = labels.map((_,i) => `hsl(${(i*47+220)%360},70%,55%)`);
+new Chart(document.getElementById('typologyChart'), {
+  type: 'bar',
+  data: { labels, datasets: [{ label: 'Cases', data: values, backgroundColor: colors, borderRadius: 6, borderWidth: 0 }] },
+  options: { indexAxis: 'y', plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#2d3748' } }, y: { ticks: { color: '#94a3b8' }, grid: { display: false } } } }
+});
+</script>
+</body></html>

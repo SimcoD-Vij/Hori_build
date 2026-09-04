@@ -22,6 +22,7 @@ def zscore_flags(transactions: pd.DataFrame, z_threshold=3.0):
                 "evidence": f"Transaction {row['amount']:.2f} is {row['zscore']:.1f} std devs from this account's own average ({mean:.2f})",
                 "transaction_ids": [row["transaction_id"]],
                 "severity_hint": min(10, int(abs(row["zscore"]))),
+                "zscore_value": round(float(row["zscore"]), 2),  # raw value for charting (not just boolean)
             })
     return flags
 

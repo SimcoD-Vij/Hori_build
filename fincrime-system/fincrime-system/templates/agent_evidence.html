@@ -1,0 +1,88 @@
+﻿<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <title>Evidence Agent — Fincrime System</title>
+  <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css' rel='stylesheet'>
+  <link href='https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap' rel='stylesheet'>
+  <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; }
+    .hero { background: linear-gradient(135deg, #1a1f2e, #0f1117); border-bottom: 1px solid #2d3748; padding: 2rem 0; }
+    .hero h1 { color: #fff; font-weight: 700; }
+    .card-dark { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; }
+    .stat-val { font-size: 2.2rem; font-weight: 700; }
+    .stat-lbl { color: #64748b; font-size: 0.82rem; }
+    .plain-box { background: #141820; border-left: 3px solid #0ea5e9; border-radius: 6px; padding: 1rem 1.2rem; color: #94a3b8; font-size: 0.88rem; }
+    a.back { color: #60a5fa; font-size: 0.85rem; }
+    .source-tag { display: inline-block; background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.75rem; margin: 0.15rem; }
+  </style>
+</head>
+<body>
+<div class='hero'>
+  <div class='container'>
+    <a href='/agents' class='back'>← all agents</a>
+    <h1 class='mt-2'>🔍 Evidence Agent</h1>
+    <p style='color:#94a3b8'>Compiling everything we actually know about a suspicious account.</p>
+  </div>
+</div>
+<div class='container py-4'>
+  <div class='plain-box mb-4'>
+    <strong style='color:#38bdf8'>Plain English:</strong> Before any investigation can proceed, someone needs to gather the facts. 
+    This agent pulls together: the specific flags that triggered the alert (with exact evidence text), a real-time check against 
+    international sanctions lists (OpenSanctions), how old the account is, and whether other accounts share the same identity. 
+    It packages all of this into one structured evidence packet that every downstream agent reads from. 
+    Nothing is invented — if it is not in the data, it is not in the packet.
+  </div>
+  <div class='row g-3 mb-4'>
+    <div class='col-md-3'><div class='card-dark text-center'>
+      <div class='stat-val' style='color:#38bdf8'>{{ stats.cases_processed }}</div><div class='stat-lbl'>Cases Processed</div>
+    </div></div>
+    <div class='col-md-3'><div class='card-dark text-center'>
+      <div class='stat-val' style='color:#f87171'>{{ stats.sanctions_hits }}</div><div class='stat-lbl'>Sanctions Hits (OpenSanctions)</div>
+    </div></div>
+    <div class='col-md-3'><div class='card-dark text-center'>
+      <div class='stat-val' style='color:#fb923c'>{{ stats.accounts_with_linked_identities }}</div><div class='stat-lbl'>Linked Identity Accounts</div>
+    </div></div>
+    <div class='col-md-3'><div class='card-dark text-center'>
+      <div class='stat-val' style='color:#34d399'>{{ stats.avg_flags_per_case }}</div><div class='stat-lbl'>Avg Flags per Case</div>
+    </div></div>
+  </div>
+  <div class='row g-3 mb-4'>
+    <div class='col-md-6'><div class='card-dark'>
+      <h6 style='color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:.08em'>Evidence Sources</h6>
+      <div class='mt-2'>
+        <span class='source-tag'>rules engine</span>
+        <span class='source-tag'>statistical z-score</span>
+        <span class='source-tag'>graph analysis</span>
+        <span class='source-tag'>ML supervised</span>
+        <span class='source-tag'>ML unsupervised</span>
+        <span class='source-tag'>EvolveGCN temporal</span>
+        <span class='source-tag'>OpenSanctions API</span>
+        <span class='source-tag'>identity graph</span>
+      </div>
+      <p class='mt-3 mb-0' style='color:#64748b;font-size:0.8rem'>All sources are listed in the audit trail of every case report. None can be added without code changes.</p>
+    </div></div>
+    <div class='col-md-6'><div class='card-dark'>
+      <h6 style='color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:.08em'>What the Evidence Packet Contains</h6>
+      <table class='table table-sm' style='color:#94a3b8;font-size:0.82rem'>
+        <tr><td>🚩</td><td><strong style='color:#e2e8f0'>Flags</strong> — exact rule name + evidence text + transaction IDs</td></tr>
+        <tr><td>📋</td><td><strong style='color:#e2e8f0'>Sources</strong> — deduplicated list of detection engines that flagged this account</td></tr>
+        <tr><td>🌐</td><td><strong style='color:#e2e8f0'>Sanctions</strong> — OpenSanctions hit/miss + confidence score</td></tr>
+        <tr><td>🔗</td><td><strong style='color:#e2e8f0'>Linked Accounts</strong> — other accounts sharing the same hashed identity</td></tr>
+        <tr><td>📅</td><td><strong style='color:#e2e8f0'>Account Age</strong> — days since opening (new accounts = higher risk)</td></tr>
+      </table>
+    </div></div>
+  </div>
+  <div class='card-dark'>
+    <h6 style='color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:.08em'>LangGraph Role</h6>
+    <p style='color:#94a3b8;font-size:0.85rem;margin:0'>
+      Evidence Agent is a <strong style='color:#38bdf8'>peer node</strong> — it runs immediately after Triage on both branches. 
+      Its output populates the <code>evidence</code> key in the shared <code>FincaseState</code>, 
+      which the Risk Assessment Agent, Explanation Agent, and Verification Agent all read from. 
+      It does not wait for Risk Assessment and Risk does not wait for it in the graph — they are concurrent.
+    </p>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Triage Agent — Fincrime System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0f1117; color: #e2e8f0; }
+    .hero { background: linear-gradient(135deg, #1a1f2e, #0f1117); border-bottom: 1px solid #2d3748; padding: 2rem 0; }
+    .hero h1 { color: #fff; font-weight: 700; }
+    .card-dark { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; }
+    .stat-val { font-size: 2.2rem; font-weight: 700; }
+    .stat-lbl { color: #64748b; font-size: 0.82rem; }
+    .aml { color: #f87171; }
+    .fraud { color: #34d399; }
+    .ambig { color: #fb923c; }
+    .plain-box { background: #141820; border-left: 3px solid #4f46e5; border-radius: 6px; padding: 1rem 1.2rem; color: #94a3b8; font-size: 0.88rem; }
+    .flow-svg text { fill: #94a3b8; font-family: Inter, sans-serif; font-size: 12px; }
+    a.back { color: #60a5fa; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+<div class="hero">
+  <div class="container">
+    <a href="/agents" class="back">← all agents</a>
+    <h1 class="mt-2">🚦 Triage Agent</h1>
+    <p style="color:#94a3b8">The first decision: can we call the customer, or must we stay silent?</p>
+  </div>
+</div>
+
+<div class="container py-4">
+  <div class="plain-box mb-4">
+    <strong style="color:#c084fc">Plain English:</strong> This agent reads all the fraud flags on an account and decides one thing: 
+    is it legally safe to call the customer? If the pattern looks like money laundering (AML), calling them would 
+    break the law — it's called "tipping-off" and it's a criminal offence. So those cases get routed silently to investigators. 
+    Only fraud cases (like a stolen card or account takeover) are safe to contact the customer about directly.
+    <br><br>
+    <strong style="color:#f87171">Hard rule:</strong> Under any ambiguity, the agent always picks AML_BRANCH. 
+    It would rather be overcautious than accidentally tip off a money launderer.
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val">{{ stats.total_cases }}</div><div class="stat-lbl">Total Cases Triaged</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val fraud">{{ stats.fraud_branch_count }}</div><div class="stat-lbl">FRAUD_BRANCH (safe to call)</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val aml">{{ stats.aml_branch_count }}</div><div class="stat-lbl">AML_BRANCH (silent investigation)</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val ambig">{{ stats.ambiguous_defaults }}</div><div class="stat-lbl">Ambiguous → AML (safety default)</div>
+    </div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-5">
+      <div class="card-dark">
+        <h6 style="color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:.08em">Branch Distribution</h6>
+        <canvas id="triageChart" height="220"></canvas>
+      </div>
+    </div>
+    <div class="col-md-7">
+      <div class="card-dark h-100">
+        <h6 style="color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:.08em">Decision Flow</h6>
+        <svg viewBox="0 0 520 280" style="width:100%;max-height:240px">
+          <!-- Input -->
+          <rect x="190" y="10" width="140" height="36" rx="8" fill="#1e2a3a" stroke="#4f46e5" stroke-width="1.5"/>
+          <text x="260" y="33" text-anchor="middle" fill="#c084fc" font-weight="600">Fraud Flags</text>
+          <line x1="260" y1="46" x2="260" y2="72" stroke="#4f46e5" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <!-- Triage box -->
+          <rect x="170" y="72" width="180" height="36" rx="8" fill="#2563eb" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="260" y="95" text-anchor="middle" fill="#fff" font-weight="600">Triage Agent</text>
+          <!-- AML branch -->
+          <line x1="170" y1="90" x2="80" y2="150" stroke="#f87171" stroke-width="1.5"/>
+          <rect x="10" y="150" width="150" height="50" rx="8" fill="#1a1f2e" stroke="#f87171" stroke-width="1.5"/>
+          <text x="85" y="170" text-anchor="middle" fill="#f87171" font-weight="600">AML_BRANCH</text>
+          <text x="85" y="188" text-anchor="middle" fill="#94a3b8" font-size="10">Silent investigation</text>
+          <!-- Fraud branch -->
+          <line x1="350" y1="90" x2="440" y2="150" stroke="#34d399" stroke-width="1.5"/>
+          <rect x="360" y="150" width="150" height="50" rx="8" fill="#1a1f2e" stroke="#34d399" stroke-width="1.5"/>
+          <text x="435" y="170" text-anchor="middle" fill="#34d399" font-weight="600">FRAUD_BRANCH</text>
+          <text x="435" y="188" text-anchor="middle" fill="#94a3b8" font-size="10">Safe to call customer</text>
+          <!-- Ambiguous label -->
+          <text x="140" y="135" text-anchor="middle" fill="#fb923c" font-size="11">AML_ONLY rules?</text>
+          <text x="380" y="135" text-anchor="middle" fill="#34d399" font-size="11">FRAUD only rules?</text>
+          <text x="260" y="240" text-anchor="middle" fill="#fb923c" font-size="11">Ambiguous → always AML (safety)</text>
+          <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 Z" fill="#4f46e5"/>
+          </marker></defs>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-dark mb-3">
+    <h6 style="color:#94a3b8;font-size:0.75rem;text-transform:uppercase;letter-spacing:.08em mb-2">LangGraph Role</h6>
+    <p style="color:#94a3b8;font-size:0.85rem;margin:0">
+      In the LangGraph execution graph, Triage is a <strong style="color:#c084fc">hard gate</strong> — the entry node. 
+      Nothing downstream executes before it, and its <code>branch</code> output drives the conditional edge that decides whether 
+      the Calling Agent is invoked. This is an unconditional fixed-sequence node, not a peer.
+    </p>
+  </div>
+</div>
+
+<script>
+new Chart(document.getElementById('triageChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['FRAUD_BRANCH', 'AML_BRANCH (rule)', 'Ambiguous → AML'],
+    datasets: [{ data: [{{ stats.fraud_branch_count }}, {{ stats.aml_branch_count - stats.ambiguous_defaults }}, {{ stats.ambiguous_defaults }}],
+      backgroundColor: ['rgba(52,211,153,0.8)', 'rgba(248,113,113,0.8)', 'rgba(251,146,60,0.8)'],
+      borderWidth: 0 }]
+  },
+  options: { plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter' } } } }, cutout: '65%' }
+});
+</script>
+</body>
+</html>

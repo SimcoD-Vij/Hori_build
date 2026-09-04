@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><title>Detection Stats — Fincrime System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body{font-family:Inter,sans-serif;background:#0f1117;color:#e2e8f0}
+    .hero{background:linear-gradient(135deg,#1a1f2e,#0f1117);border-bottom:1px solid #2d3748;padding:2rem 0}
+    .hero h1{color:#fff;font-weight:700}.card-dark{background:#1a1f2e;border:1px solid #2d3748;border-radius:12px;padding:1.5rem}
+    .stat-val{font-size:2.2rem;font-weight:700}.stat-lbl{color:#64748b;font-size:.82rem}
+    a.back{color:#60a5fa;font-size:.85rem}
+  </style>
+</head>
+<body>
+<div class="hero"><div class="container">
+  <a href="/" class="back">← back to dashboard</a>
+  <h1 class="mt-2">📡 Detection Engine Stats</h1>
+  <p style="color:#94a3b8">Visual breakdown of all active detection layers: rules, statistics, graph analysis, and ML models.</p>
+</div></div>
+<div class="container py-4">
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#60a5fa">{{ n_accounts }}</div><div class="stat-lbl">Accounts Scanned</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#f87171">{{ n_flagged }}</div><div class="stat-lbl">Flagged Accounts</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#fbbf24">{{ benford.deviation }}</div><div class="stat-lbl">Benford Deviation</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#34d399">{{ n_zscore_flags }}</div><div class="stat-lbl">Z-Score Outliers</div>
+    </div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Flag Sources Breakdown</h6>
+      <canvas id="flagChart" height="240"></canvas>
+    </div></div>
+    <div class="col-md-6"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Z-Score Distribution (flagged transactions)</h6>
+      <canvas id="zscoreChart" height="240"></canvas>
+    </div></div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Benford's Law — Digit Distribution</h6>
+      <p style="color:#64748b;font-size:.8rem">Natural transactions follow Benford's Law. High deviation = artificial-looking amounts.</p>
+      <div class="d-flex align-items-center gap-3">
+        <div style="font-size:3rem;font-weight:700;color:{{ '#f87171' if benford.deviation > 0.15 else ('#fbbf24' if benford.deviation > 0.08 else '#34d399') }}">
+          {{ benford.deviation }}
+        </div>
+        <div style="color:#94a3b8;font-size:.85rem">{{ benford.note }}<br>
+          <span style="color:#64748b;font-size:.78rem">0.0 = perfectly natural &nbsp;|&nbsp; >0.1 = suspicious</span>
+        </div>
+      </div>
+    </div></div>
+    <div class="col-md-6"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Detection Layers Active</h6>
+      <table class="table table-sm" style="color:#94a3b8;font-size:.82rem">
+        <tr><td>✅</td><td><strong>Rules Engine</strong></td><td style="color:#64748b">structuring, velocity, bust-out, CNP</td></tr>
+        <tr><td>✅</td><td><strong>Statistical</strong></td><td style="color:#64748b">z-score self-history, Benford's Law</td></tr>
+        <tr><td>✅</td><td><strong>Graph Analysis</strong></td><td style="color:#64748b">fan-hub, round-trip, identity rings</td></tr>
+        <tr><td>✅</td><td><strong>Peer Segmentation</strong></td><td style="color:#64748b">peer group deviation</td></tr>
+        <tr><td>✅</td><td><strong>ML Supervised</strong></td><td style="color:#64748b">RandomForest on bootstrapped labels</td></tr>
+        <tr><td>✅</td><td><strong>ML Unsupervised</strong></td><td style="color:#64748b">Isolation Forest novel patterns</td></tr>
+        <tr><td>⚡</td><td><strong>EvolveGCN Temporal</strong></td><td style="color:#64748b">GPU microservice (heuristic placeholder)</td></tr>
+      </table>
+    </div></div>
+  </div>
+</div>
+<script>
+const flagData = {{ flag_sources | tojson }};
+new Chart(document.getElementById('flagChart'), {
+  type: 'bar',
+  data: { labels: Object.keys(flagData), datasets: [{ label: 'Flags', data: Object.values(flagData),
+    backgroundColor: Object.keys(flagData).map((_,i) => `hsl(${(i*53+180)%360},65%,50%)`), borderRadius: 6, borderWidth: 0 }] },
+  options: { indexAxis: 'y', plugins:{legend:{display:false}},
+    scales: { x:{ticks:{color:'#94a3b8'},grid:{color:'#2d3748'}}, y:{ticks:{color:'#94a3b8'},grid:{display:false}} } }
+});
+const zVals = {{ zscore_values | tojson }};
+const zBins = [-10,-8,-6,-4,-3,-2,2,3,4,6,8,10];
+const zCounts = new Array(zBins.length-1).fill(0);
+zVals.forEach(v => { for(let i=0;i<zBins.length-1;i++) { if(v>=zBins[i] && v<zBins[i+1]) { zCounts[i]++; break; } } });
+new Chart(document.getElementById('zscoreChart'), {
+  type: 'bar',
+  data: { labels: zBins.slice(0,-1).map((b,i) => `${b} to ${zBins[i+1]}`),
+    datasets: [{ label: 'Transactions', data: zCounts,
+      backgroundColor: zBins.slice(0,-1).map(b => Math.abs(b)>=6 ? 'rgba(248,113,113,.8)' : Math.abs(b)>=3 ? 'rgba(251,191,36,.8)' : 'rgba(52,211,153,.8)'), borderRadius: 4, borderWidth: 0 }] },
+  options: { plugins:{legend:{display:false}}, scales:{
+    x:{ticks:{color:'#94a3b8',maxRotation:40,font:{size:10}},grid:{display:false}},
+    y:{ticks:{color:'#94a3b8'},grid:{color:'#2d3748'}} } }
+});
+</script>
+</body></html>

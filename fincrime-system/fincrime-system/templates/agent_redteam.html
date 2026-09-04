@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><title>Red-Team Agent — Fincrime System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body{font-family:Inter,sans-serif;background:#0f1117;color:#e2e8f0}
+    .hero{background:linear-gradient(135deg,#1a1f2e,#0f1117);border-bottom:1px solid #2d3748;padding:2rem 0}
+    .hero h1{color:#fff;font-weight:700}.card-dark{background:#1a1f2e;border:1px solid #2d3748;border-radius:12px;padding:1.5rem}
+    .stat-val{font-size:2.2rem;font-weight:700}.stat-lbl{color:#64748b;font-size:.82rem}
+    .plain-box{background:#141820;border-left:3px solid #f87171;border-radius:6px;padding:1rem 1.2rem;color:#94a3b8;font-size:.88rem}
+    a.back{color:#60a5fa;font-size:.85rem}
+    .evaded{color:#f87171}.caught{color:#34d399}
+  </style>
+</head>
+<body>
+<div class="hero"><div class="container">
+  <a href="/agents" class="back">← all agents</a>
+  <h1 class="mt-2">🔴 Red-Team Agent</h1>
+  <p style="color:#94a3b8">Deliberately trying to beat our own detection system — and recording what it finds.</p>
+</div></div>
+<div class="container py-4">
+  <div class="plain-box mb-4">
+    <strong style="color:#f87171">Plain English:</strong> Imagine a security team that knows all your alarm codes and tries to rob the building. 
+    If they succeed, you know you have a problem. That is what this agent does — it generates fake transactions designed to look suspicious but 
+    avoid triggering our detection rules. If it finds a way to sneak through, it logs a "blind spot" and recommends a rule fix. 
+    Its results also feed the Regulatory Agent as evidence of the continuous risk management process required by the EU AI Act.
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#60a5fa">{{ stats.total_probes }}</div><div class="stat-lbl">Total Probes Run</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val evaded">{{ stats.blind_spots_found }}</div><div class="stat-lbl">Blind Spots Found (evaded)</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val caught">{{ stats.total_probes - stats.blind_spots_found }}</div><div class="stat-lbl">Probes Caught</div>
+    </div></div>
+    <div class="col-md-3"><div class="card-dark text-center">
+      <div class="stat-val" style="color:#fb923c">{{ "%.0f"|format(stats.attack_success_rate * 100) }}%</div><div class="stat-lbl">Attack Success Rate</div>
+    </div></div>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Probe History (last 10)</h6>
+      <canvas id="rtChart" height="200"></canvas>
+    </div></div>
+    <div class="col-md-6"><div class="card-dark">
+      <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">Run History</h6>
+      {% if stats.history %}
+      <table class="table table-sm" style="color:#94a3b8;font-size:.8rem">
+        <thead><tr><th style="color:#64748b">Run</th><th style="color:#64748b">Probe</th><th style="color:#64748b">Result</th></tr></thead>
+        <tbody>{% for r in stats.history %}<tr>
+          <td>{{ r.run_at[:16] if r.run_at else "—" }}</td>
+          <td>{{ r.probe_type }}</td>
+          <td>{% if r.blind_spot_found %}<span class="badge bg-danger">EVADED</span>{% else %}<span class="badge bg-success">CAUGHT</span>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+      </table>
+      {% else %}<p style="color:#64748b">No probes run yet. Go to <a href="/redteam" style="color:#60a5fa">/redteam</a> to run the first probe.</p>{% endif %}
+    </div></div>
+  </div>
+  <div class="card-dark">
+    <h6 style="color:#94a3b8;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em">EU AI Act Connection</h6>
+    <p style="color:#94a3b8;font-size:.85rem;margin:0">The Red-Team Agent's ongoing probe loop satisfies EU AI Act Article 9's requirement for 
+    a <strong style="color:#f87171">continuous, iterative risk management system</strong>. Each result is appended to 
+    <code>data/redteam_history.jsonl</code> and updates <code>data/system_card.json</code> with the last probe date. 
+    The Regulatory Agent reads this to verify the required cadence is being maintained.</p>
+  </div>
+</div>
+<script>
+const hist = {{ stats.history | tojson }};
+const rtLabels = hist.map((r,i) => 'Run ' + (i+1));
+const rtData = hist.map(r => r.blind_spot_found ? 1 : 0);
+new Chart(document.getElementById('rtChart'), {
+  type: 'bar',
+  data: { labels: rtLabels, datasets: [{ label: 'Evaded (1) / Caught (0)', data: rtData,
+    backgroundColor: rtData.map(v => v ? 'rgba(248,113,113,.8)' : 'rgba(52,211,153,.8)'), borderRadius: 4, borderWidth: 0 }] },
+  options: { plugins:{legend:{display:false}}, scales:{
+    x:{ticks:{color:'#94a3b8'},grid:{display:false}},
+    y:{ticks:{color:'#94a3b8',stepSize:1},grid:{color:'#2d3748'},min:0,max:1} } }
+});
+</script>
+</body></html>
